@@ -1,0 +1,136 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with display name, email, church name, and role",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 254 },
+        "photoURL": { "type": "string", "maxLength": 1024 },
+        "churchName": { "type": "string", "maxLength": 200 },
+        "role": { "type": "string", "enum": ["user", "pastor", "admin"] },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["uid", "email", "displayName", "role", "createdAt"]
+    },
+    "Prayer": {
+      "title": "Prayer",
+      "description": "Prayer requests shared on the community prayer wall",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200, "minLength": 1 },
+        "author": { "type": "string", "maxLength": 100, "minLength": 1 },
+        "location": { "type": "string", "maxLength": 120 },
+        "prayerText": { "type": "string", "maxLength": 2000, "minLength": 1 },
+        "category": {
+          "type": "string",
+          "enum": [
+            "चंगाई",
+            "परिवार",
+            "मार्गदर्शन",
+            "शान्ति",
+            "आर्थिक",
+            "धन्यवाद",
+            "अन्य",
+            "healing",
+            "family",
+            "guidance",
+            "peace",
+            "financial",
+            "thanksgiving",
+            "other",
+            "youth",
+            "nation",
+            "church"
+          ]
+        },
+        "date": { "type": "string", "maxLength": 64 },
+        "prayerCount": { "type": "number" },
+        "visibility": { "type": "string", "enum": ["public", "private"] },
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["title", "author", "location", "prayerText", "category", "date", "prayerCount", "visibility", "userId", "createdAt"]
+    },
+    "Note": {
+      "title": "Note",
+      "description": "Private Bible study notes and sermon reflections",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200, "minLength": 1 },
+        "content": { "type": "string", "maxLength": 10000, "minLength": 1 },
+        "tags": { "type": "string", "maxLength": 200 },
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["title", "content", "tags", "userId", "createdAt", "updatedAt"]
+    },
+    "Wallpaper": {
+      "title": "Wallpaper",
+      "description": "Created or saved Bible verse wallpapers and backgrounds",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200, "minLength": 1 },
+        "imageUrl": { "type": "string", "maxLength": 2048, "minLength": 1 },
+        "verseRef": { "type": "string", "maxLength": 120 },
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["title", "imageUrl", "verseRef", "userId", "createdAt"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "System administrators mapping",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 254 },
+        "grantedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "email", "grantedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Security audit logs for admin actions",
+      "type": "object",
+      "properties": {
+        "action": { "type": "string", "maxLength": 120 },
+        "actorUid": { "type": "string", "maxLength": 128 },
+        "actorEmail": { "type": "string", "maxLength": 254 },
+        "timestamp": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["success", "failure", "warning"] },
+        "details": { "type": "string", "maxLength": 1000 }
+      },
+      "required": ["action", "actorUid", "actorEmail", "timestamp", "status", "details"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents isolated to owner or admin"
+    },
+    "/prayers/{prayerId}": {
+      "schema": "Prayer",
+      "description": "Community prayer wall requests and intercessions"
+    },
+    "/notes/{noteId}": {
+      "schema": "Note",
+      "description": "Private user study notes"
+    },
+    "/wallpapers/{wallpaperId}": {
+      "schema": "Wallpaper",
+      "description": "Community verse wallpapers"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Admin authorization mapping"
+    },
+    "/auditLogs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Security audit records"
+    }
+  }
+}

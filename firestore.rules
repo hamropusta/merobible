@@ -1,0 +1,243 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == 'dipimafauja@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // 3. Validation Blueprints (Anti-Update-Gap)
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'role', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'churchName', 'role', 'createdAt'])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1024))
+        && (!('churchName' in data) || (data.churchName is string && data.churchName.size() <= 200))
+        && data.role is string && data.role in ['user', 'pastor', 'admin']
+        && data.createdAt is string && data.createdAt.size() >= 1 && data.createdAt.size() <= 64;
+    }
+
+    function isValidPrayer(data) {
+      return data.keys().hasAll(['title', 'author', 'location', 'prayerText', 'category', 'date', 'prayerCount', 'visibility', 'userId', 'createdAt'])
+        && data.keys().hasOnly(['title', 'author', 'location', 'prayerText', 'category', 'date', 'prayerCount', 'visibility', 'userId', 'createdAt'])
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.author is string && data.author.size() >= 1 && data.author.size() <= 100
+        && data.location is string && data.location.size() >= 1 && data.location.size() <= 120
+        && data.prayerText is string && data.prayerText.size() >= 1 && data.prayerText.size() <= 2000
+        && data.category is string && data.category.size() <= 64
+        && data.date is string && data.date.size() >= 1 && data.date.size() <= 64
+        && data.prayerCount is number && data.prayerCount >= 0
+        && data.visibility is string && data.visibility in ['public', 'private']
+        && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.createdAt is string && data.createdAt.size() >= 1 && data.createdAt.size() <= 64;
+    }
+
+    function isValidNote(data) {
+      return data.keys().hasAll(['title', 'content', 'tags', 'userId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['title', 'content', 'tags', 'userId', 'createdAt', 'updatedAt'])
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.content is string && data.content.size() >= 1 && data.content.size() <= 10000
+        && data.tags is string && data.tags.size() <= 200
+        && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.createdAt is string && data.createdAt.size() >= 1 && data.createdAt.size() <= 64
+        && data.updatedAt is string && data.updatedAt.size() >= 1 && data.updatedAt.size() <= 64;
+    }
+
+    function isValidWallpaper(data) {
+      return data.keys().hasAll(['title', 'imageUrl', 'verseRef', 'userId', 'createdAt'])
+        && data.keys().hasOnly(['title', 'imageUrl', 'verseRef', 'userId', 'createdAt'])
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.imageUrl is string && data.imageUrl.size() >= 1 && data.imageUrl.size() <= 2048
+        && data.verseRef is string && data.verseRef.size() <= 120
+        && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.createdAt is string && data.createdAt.size() >= 1 && data.createdAt.size() <= 64;
+    }
+
+    function isValidAdmin(data) {
+      return data.keys().hasAll(['userId', 'email', 'grantedAt'])
+        && data.keys().hasOnly(['userId', 'email', 'grantedAt'])
+        && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.grantedAt is string && data.grantedAt.size() >= 1 && data.grantedAt.size() <= 64;
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['action', 'actorUid', 'actorEmail', 'timestamp', 'status', 'details'])
+        && data.keys().hasOnly(['action', 'actorUid', 'actorEmail', 'timestamp', 'status', 'details'])
+        && data.action is string && data.action.size() >= 1 && data.action.size() <= 120
+        && data.actorUid is string && data.actorUid.size() >= 1 && data.actorUid.size() <= 128
+        && data.actorEmail is string && data.actorEmail.size() >= 3 && data.actorEmail.size() <= 254
+        && data.timestamp is string && data.timestamp.size() >= 1 && data.timestamp.size() <= 64
+        && data.status is string && data.status in ['success', 'failure', 'warning']
+        && data.details is string && data.details.size() <= 1000;
+    }
+
+    // 4. Collection Match Blocks
+
+    // Users collection (PII Isolated to Owner or Admin)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().uid == request.auth.uid
+        && userId == request.auth.uid
+        && (incoming().role == 'user' || isAdmin());
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && (
+          isAdmin() ||
+          (
+            isOwner(userId)
+            && incoming().uid == existing().uid
+            && incoming().email == existing().email
+            && incoming().role == existing().role
+            && incoming().createdAt == existing().createdAt
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'churchName'])
+          )
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // Prayers collection (Community Prayer Wall)
+    match /prayers/{prayerId} {
+      allow get: if isValidId(prayerId) && (
+        existing().visibility == 'public' ||
+        (isSignedIn() && existing().userId == request.auth.uid) ||
+        isAdmin()
+      );
+      allow list: if existing().visibility == 'public' || (isSignedIn() && existing().userId == request.auth.uid);
+      allow create: if isVerifiedUser()
+        && isValidId(prayerId)
+        && isValidPrayer(incoming())
+        && incoming().userId == request.auth.uid;
+      allow update: if isVerifiedUser()
+        && isValidId(prayerId)
+        && isValidPrayer(incoming())
+        && (
+          isAdmin() ||
+          (
+            existing().userId == request.auth.uid
+            && incoming().userId == existing().userId
+            && incoming().createdAt == existing().createdAt
+            && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'author', 'location', 'prayerText', 'category', 'visibility', 'prayerCount'])
+          ) ||
+          (
+            existing().visibility == 'public'
+            && incoming().userId == existing().userId
+            && incoming().createdAt == existing().createdAt
+            && incoming().diff(existing()).affectedKeys().hasOnly(['prayerCount'])
+            && incoming().prayerCount == existing().prayerCount + 1
+          )
+        );
+      allow delete: if isValidId(prayerId) && (
+        (isVerifiedUser() && existing().userId == request.auth.uid) ||
+        isAdmin()
+      );
+    }
+
+    // Notes collection (Private User Study Notes)
+    match /notes/{noteId} {
+      allow get: if isValidId(noteId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(noteId)
+        && isValidNote(incoming())
+        && incoming().userId == request.auth.uid;
+      allow update: if isVerifiedUser()
+        && isValidId(noteId)
+        && isValidNote(incoming())
+        && existing().userId == request.auth.uid
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'tags', 'updatedAt']);
+      allow delete: if isValidId(noteId) && isVerifiedUser() && existing().userId == request.auth.uid;
+    }
+
+    // Wallpapers collection
+    match /wallpapers/{wallpaperId} {
+      allow get: if isValidId(wallpaperId);
+      allow list: if existing().userId is string;
+      allow create: if isVerifiedUser()
+        && isValidId(wallpaperId)
+        && isValidWallpaper(incoming())
+        && incoming().userId == request.auth.uid;
+      allow update: if isVerifiedUser()
+        && isValidId(wallpaperId)
+        && isValidWallpaper(incoming())
+        && (
+          isAdmin() ||
+          (
+            existing().userId == request.auth.uid
+            && incoming().userId == existing().userId
+            && incoming().createdAt == existing().createdAt
+            && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'imageUrl', 'verseRef'])
+          )
+        );
+      allow delete: if isValidId(wallpaperId) && (
+        (isVerifiedUser() && existing().userId == request.auth.uid) ||
+        isAdmin()
+      );
+    }
+
+    // Admins collection
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(adminId) && isValidAdmin(incoming()) && isAdmin();
+      allow update: if isValidId(adminId) && isValidAdmin(incoming()) && isAdmin()
+        && incoming().userId == existing().userId
+        && incoming().grantedAt == existing().grantedAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['email']);
+      allow delete: if isValidId(adminId) && isAdmin();
+    }
+
+    // Audit logs collection (Append-Only for Verified Users, Readable by Admin)
+    match /auditLogs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isVerifiedUser()
+        && isValidId(logId)
+        && isValidAuditLog(incoming())
+        && incoming().actorUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+  }
+}
